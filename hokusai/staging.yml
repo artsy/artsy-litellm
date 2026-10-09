@@ -1,0 +1,175 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: artsy-litellm-web
+  namespace: default
+  labels:
+    app: artsy-litellm
+    component: web
+    layer: application
+    app.kubernetes.io/version: staging
+spec:
+  replicas: 2
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: artsy-litellm
+      component: web
+      layer: application
+  template:
+    metadata:
+      labels:
+        app: artsy-litellm
+        component: web
+        layer: application
+        app.kubernetes.io/version: staging
+      name: artsy-litellm-web
+    spec:
+      initContainers:
+      - name: setenv
+        image: 585031190124.dkr.ecr.us-east-1.amazonaws.com/fortress:staging
+        imagePullPolicy: Always
+        command:
+        - python
+        - src/load/load.py
+        - kubernetes
+        - staging
+        - artsy-litellm
+        envFrom:
+        - configMapRef:
+            name: secrets-config
+        volumeMounts:
+        - name: secrets
+          mountPath: /secrets
+      containers:
+      - name: artsy-litellm-web
+        env:
+        # Set here, not in the config map: Hokusai's pre-deploy pod keeps
+        # envFrom but drops env, so migrations run there and nowhere else.
+        - name: DISABLE_SCHEMA_UPDATE
+          value: 'true'
+        - name: DD_VERSION
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.labels['app.kubernetes.io/version']
+        envFrom:
+        - configMapRef:
+            name: secrets-config
+        - configMapRef:
+            name: artsy-litellm-environment
+        volumeMounts:
+        - name: secrets
+          mountPath: /secrets
+          readOnly: true
+        image: {{ project_repo }}:staging
+        imagePullPolicy: Always
+        ports:
+        - name: litellm-http
+          containerPort: 4000
+        resources:
+          # LiteLLM's minimum per worker; less than 4Gi leads to OOM kills.
+          requests:
+            cpu: '1'
+            memory: 4Gi
+          limits:
+            memory: 4Gi
+        # Allows up to 3 minutes for the first boot (Prisma, DB, Redis).
+        startupProbe:
+          httpGet:
+            port: litellm-http
+            path: /health/liveliness
+          periodSeconds: 5
+          timeoutSeconds: 5
+          failureThreshold: 36
+        readinessProbe:
+          httpGet:
+            port: litellm-http
+            path: /health/readiness
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        livenessProbe:
+          httpGet:
+            port: litellm-http
+            path: /health/liveliness
+          periodSeconds: 15
+          timeoutSeconds: 5
+          failureThreshold: 4
+        lifecycle:
+          preStop:
+            exec:
+              command:
+              - sh
+              - -c
+              - sleep 5
+      # On shutdown, LiteLLM waits for open requests and then writes buffered
+      # spend. Long streamed or thinking-heavy calls can run for minutes; a
+      # short grace period would cut them and lose unwritten spend. Idle pods
+      # still exit right away.
+      terminationGracePeriodSeconds: 300
+      dnsPolicy: ClusterFirst
+      dnsConfig:
+        options:
+        - name: ndots
+          value: '1'
+      serviceAccountName: artsy-litellm
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: tier
+                operator: In
+                values:
+                - foreground
+      volumes:
+      - name: secrets
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: artsy-litellm
+    component: web
+    layer: application
+  name: artsy-litellm-web-internal
+  namespace: default
+spec:
+  ports:
+  - port: 4000
+    protocol: TCP
+    name: http
+    targetPort: litellm-http
+  selector:
+    app: artsy-litellm
+    layer: application
+    component: web
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: artsy-litellm
+  namespace: default
+  annotations:
+    # Long, non-streamed model calls over VPN outlast nginx's 60s default.
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+spec:
+  ingressClassName: internal-nginx
+  rules:
+  - host: litellm.stg.artsy.systems
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: artsy-litellm-web-internal
+            port:
+              name: http
