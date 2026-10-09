@@ -71,10 +71,12 @@ spec:
         - name: litellm-http
           containerPort: 4000
         resources:
-          # LiteLLM's minimum per worker; less than 4Gi leads to OOM kills.
+          # Staging traffic is light, so request less than LiteLLM's production
+          # sizing (1 CPU / 4Gi) to fit the foreground nodes. The 4Gi limit
+          # stays: less than that leads to OOM kills.
           requests:
-            cpu: '1'
-            memory: 4Gi
+            cpu: 250m
+            memory: 2Gi
           limits:
             memory: 4Gi
         # Allows up to 3 minutes for the first boot (Prisma, DB, Redis).
@@ -157,6 +159,11 @@ metadata:
   name: artsy-litellm
   namespace: default
   annotations:
+    # Pass streamed responses through as they arrive.
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+    # nginx rejects bodies over 1m by default (413). Long conversations and
+    # images exceed that; match Anthropic's 32 MB Messages API limit.
+    nginx.ingress.kubernetes.io/proxy-body-size: "32m"
     # Long, non-streamed model calls over VPN outlast nginx's 60s default.
     nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
