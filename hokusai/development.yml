@@ -1,0 +1,26 @@
+---
+version: '2'
+services:
+  artsy-litellm:
+    environment:
+      - DATABASE_URL=postgresql://postgres:@artsy-litellm-postgres/litellm_development
+      - LITELLM_MASTER_KEY=sk-development
+      - LITELLM_SALT_KEY=development-salt
+      - REDIS_HOST=artsy-litellm-redis
+      - REDIS_PORT=6379
+      - REDIS_DB=0
+      - ANTHROPIC_API_KEY
+    build:
+      context: ../
+    ports:
+      - 4000:4000
+    depends_on:
+      - artsy-litellm-postgres
+      - artsy-litellm-redis
+  artsy-litellm-postgres:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_DB=litellm_development
+      - POSTGRES_HOST_AUTH_METHOD=trust
+  artsy-litellm-redis:
+    image: redis:6.2-alpine

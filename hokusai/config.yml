@@ -1,0 +1,3 @@
+---
+project-name: artsy-litellm
+pre-deploy: python litellm/proxy/prisma_migration.py

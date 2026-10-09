@@ -1,0 +1,5 @@
+.env
+.env.*
+.hokusai-tmp
+.DS_Store
+*.log
