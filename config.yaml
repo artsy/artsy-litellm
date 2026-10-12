@@ -9,6 +9,9 @@ model_list:
 
 general_settings:
   master_key: os.environ/LITELLM_MASTER_KEY
+  # Admin UI login only with personal admin accounts, never the shared master
+  # key. The master key still works over the API (Authorization: Bearer).
+  disable_env_credential_login: true
   store_model_in_db: true
   # Staging shares staging-shared Postgres with other apps; keep connections low.
   database_connection_pool_limit: 3
@@ -24,6 +27,12 @@ general_settings:
 router_settings:
   redis_host: os.environ/REDIS_HOST
   redis_port: os.environ/REDIS_PORT
+
+litellm_settings:
+  # Sends a trace of every call, prompts and responses included, to Phoenix.
+  # Reads PHOENIX_COLLECTOR_HTTP_ENDPOINT and PHOENIX_PROJECT_NAME from the
+  # config map and PHOENIX_API_KEY from Vault.
+  callbacks: ["arize_phoenix"]
 
 # No litellm_settings.cache: the response cache stays off. On the shared Redis
 # its flush endpoint would run FLUSHALL across every app's databases.
