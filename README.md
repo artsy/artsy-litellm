@@ -14,6 +14,7 @@ This repository configures and deploys Artsy's [LiteLLM](https://github.com/Berr
 - Every pod is identical. Jobs that must run once (budget resets, spend log cleanup) take a Redis lock.
 - Database migrations run once per deploy in Hokusai's `pre-deploy` hook. Pods have `DISABLE_SCHEMA_UPDATE=true`.
 - Redis: shared-staging, on our own DB number (see Notion "Shared Redis DB Assignments"). The response cache stays off: on a shared Redis its flush endpoint would empty every app's data.
+- No tracing to Phoenix from LiteLLM: tracing lives in the apps. For an app without its own tracing, enable Phoenix on that app's team or key only, via its `metadata.logging` (`[{"callback_name": "arize_phoenix", "callback_vars": {}}]`; for a team, `POST /team/{team_id}/callback`). Phoenix credentials come only from the `PHOENIX_*` env vars, so set those again first.
 
 ## Configuration
 
