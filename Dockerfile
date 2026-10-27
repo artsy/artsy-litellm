@@ -1,4 +1,4 @@
-FROM ghcr.io/berriai/litellm:v1.104.2@sha256:3d88bd757134a00e8c00237b85a021ab1f6d54abb9c1df750f411dbe7256a500
+FROM ghcr.io/berriai/litellm:v1.106.2@sha256:7294b90f868c5c38c99b83021c7ba46f9b439e95f8e32964c925c7d2563a03f7
 
 COPY ./scripts/load_secrets_and_run.sh /app/load_secrets_and_run.sh
 COPY ./config.yaml /app/config.yaml
