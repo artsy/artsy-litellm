@@ -2,6 +2,7 @@ version: 2.1
 
 orbs:
   hokusai: artsy/hokusai@volatile
+  horizon: artsy/release@volatile
 
 not_staging_or_release: &not_staging_or_release
   filters:
@@ -16,9 +17,20 @@ only_main: &only_main
     branches:
       only: main
 
+only_release: &only_release
+  context: hokusai
+  filters:
+    branches:
+      only: release
+
 workflows:
   build-deploy:
     jobs:
+      - horizon/block:
+          <<: *only_release
+          context: horizon
+          project_id: TODO # Horizon project id, created before the first release
+
       - hokusai/test:
           <<: *not_staging_or_release
 
@@ -33,3 +45,9 @@ workflows:
           project-name: artsy-litellm
           requires:
             - push-staging-image
+
+      - hokusai/deploy-production:
+          <<: *only_release
+          project-name: artsy-litellm
+          requires:
+            - horizon/block

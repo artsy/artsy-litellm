@@ -4,16 +4,16 @@ This repository configures and deploys Artsy's [LiteLLM](https://github.com/Berr
 
 - **State**: Development
 - **Staging**: https://litellm.stg.artsy.systems 🔒 (admin UI, VPN only). In-cluster: `http://artsy-litellm-web-internal.default.svc.cluster.local:4000`
-- **Production**: not deployed yet
+- **Production**: https://litellm.prd.artsy.systems 🔒 (admin UI, VPN only). In-cluster: `http://artsy-litellm-web-internal.default.svc.cluster.local:4000`
 - **GitHub**: https://github.com/artsy/artsy-litellm
-- **[CircleCI](https://circleci.com/gh/artsy/artsy-litellm)**: Merged PRs to artsy/artsy-litellm#main are automatically deployed to staging.
+- **[CircleCI](https://circleci.com/gh/artsy/artsy-litellm)**: Merged PRs to artsy/artsy-litellm#main are automatically deployed to staging. Production deploys from the `release` branch, after approval in Horizon.
 
 ## How it runs
 
 - The image is LiteLLM's published image (`Dockerfile`, pinned by digest) plus `config.yaml` and a script that loads secrets from fortress.
 - Every pod is identical. Jobs that must run once (budget resets, spend log cleanup) take a Redis lock.
 - Database migrations run once per deploy in Hokusai's `pre-deploy` hook. Pods have `DISABLE_SCHEMA_UPDATE=true`.
-- Redis: shared-staging, on our own DB number (see Notion "Shared Redis DB Assignments"). The response cache stays off: on a shared Redis its flush endpoint would empty every app's data.
+- Redis: staging uses shared-staging, on our own DB number (see Notion "Shared Redis DB Assignments"). Production has its own ElastiCache replication group `artsy-litellm-production` (DB 0). The response cache stays off: on a shared Redis its flush endpoint would empty every app's data.
 - No tracing to Phoenix from LiteLLM: tracing lives in the apps. For an app without its own tracing, enable Phoenix on that app's team or key only, via its `metadata.logging` (`[{"callback_name": "arize_phoenix", "callback_vars": {}}]`; for a team, `POST /team/{team_id}/callback`). Phoenix credentials come only from the `PHOENIX_*` env vars, so set those again first.
 
 ## Configuration
@@ -21,7 +21,7 @@ This repository configures and deploys Artsy's [LiteLLM](https://github.com/Berr
 | What | Where | Change needs |
 | --- | --- | --- |
 | Secrets (`DATABASE_URL`, `LITELLM_MASTER_KEY`, `LITELLM_SALT_KEY`, `ANTHROPIC_API_KEY`) | Vault `kubernetes/apps/artsy-litellm`, loaded by fortress | Pod restart |
-| `REDIS_HOST`, `REDIS_PORT`, `REDIS_DB` | Config map `artsy-litellm-environment` (`hokusai staging env set`). Never set `REDIS_URL`; it overrides `REDIS_DB`. | Pod restart |
+| `REDIS_HOST`, `REDIS_PORT`, `REDIS_DB` | Config map `artsy-litellm-environment` (`hokusai <env> env set`). Never set `REDIS_URL`; it overrides `REDIS_DB`. | Pod restart |
 | Gateway settings and the default model | `config.yaml` | PR and deploy |
 | Other models, keys, teams, budgets, limits | Admin UI | Nothing; pods pick it up within about 30 seconds |
 
@@ -29,7 +29,7 @@ This repository configures and deploys Artsy's [LiteLLM](https://github.com/Berr
 
 ## First deploy prerequisites
 
-The first deploy fails unless all of these exist:
+The first deploy to each environment fails unless all of these exist. The paths below are the staging ones; production has the same pieces in the production Terraform, cluster, Postgres and Redis (the Vault policy is in `terraform/production/vault/k8s_apps_role_policy.tf`, and production deploys also need the Horizon `project_id` set in `.circleci/config.yml`).
 
 1. ECR repository `artsy-litellm` (artsy/infrastructure `terraform/shared/ecr.tf`)
 2. Vault policy for `artsy-litellm` (artsy/infrastructure `terraform/staging/vault/k8s_apps_role_policy.tf`) and the secrets at `kubernetes/apps/artsy-litellm`
