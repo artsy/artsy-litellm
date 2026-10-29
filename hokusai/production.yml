@@ -133,6 +133,24 @@ spec:
       - name: secrets
         emptyDir: {}
 ---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: artsy-litellm-web
+  namespace: default
+  labels:
+    app: artsy-litellm
+    component: web
+    layer: application
+spec:
+  # Node drains can take down at most one of the 3 pods at a time.
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: artsy-litellm
+      component: web
+      layer: application
+---
 apiVersion: v1
 kind: Service
 metadata:
