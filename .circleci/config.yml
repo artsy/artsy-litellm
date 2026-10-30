@@ -48,6 +48,5 @@ workflows:
 
       - hokusai/deploy-production:
           <<: *only_release
-          project-name: artsy-litellm
           requires:
             - horizon/block
