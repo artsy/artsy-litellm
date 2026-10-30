@@ -32,6 +32,11 @@ router_settings:
   redis_host: os.environ/REDIS_HOST
   redis_port: os.environ/REDIS_PORT
 
-# No litellm_settings: no global logging callbacks (apps trace themselves) and
-# no response cache. On the shared Redis the cache's flush endpoint would run
-# FLUSHALL across every app's databases.
+litellm_settings:
+  # Every key is traced to Phoenix (PHOENIX_* env vars). The key's
+  # metadata.phoenix_project_name picks the project. There's no per-key opt-out:
+  # Disabled Callbacks is an Enterprise feature.
+  callbacks: ["arize_phoenix"]
+
+# No response cache: on the shared Redis its flush endpoint would run FLUSHALL
+# across every app's databases.
