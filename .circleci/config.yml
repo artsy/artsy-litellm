@@ -29,7 +29,7 @@ workflows:
       - horizon/block:
           <<: *only_release
           context: horizon
-          project_id: TODO # Horizon project id, created before the first release
+          project_id: 284
 
       - hokusai/test:
           <<: *not_staging_or_release

@@ -34,7 +34,7 @@ Every call is traced to [Phoenix](https://github.com/artsy/artsy-phoenix). Set t
 { "phoenix_project_name": "<project>" }
 ```
 
-- Without it, traces go to `PHOENIX_PROJECT_NAME` (`litellm` on staging).
+- Without it, traces go to `PHOENIX_PROJECT_NAME` (`litellm` on staging and production).
 - Keys can't opt out (that's Enterprise only). Apps with their own tracing, like Metaphysics, get their LLM calls traced twice, so use a separate project for their key.
 - Don't add the UI's "Arize" integration. It sends to Arize's cloud, not our Phoenix.
 
@@ -53,8 +53,6 @@ kubectl --context staging label configmap artsy-litellm-environment app=artsy-li
 ```
 
 Production uses `--context production` and also sets `REDIS_SSL=true`, with `REDIS_DB=0` and the host of the `artsy-litellm-production` group. `REDIS_PASSWORD` goes in Vault.
-
-Production deploys also need the Horizon `project_id` set in `.circleci/config.yml`.
 
 After the first deploy, in each environment, create two indexes that LiteLLM's migrations leave out. Run them as the `litellm` user. Until they exist, pods log `prisma schema out of sync`:
 
