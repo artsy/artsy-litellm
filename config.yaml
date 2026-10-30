@@ -20,9 +20,13 @@ general_settings:
   # Explicit so LiteLLM never silently falls back to per-pod rate limits.
   # An unreachable Redis does not stop boot or readiness; its errors show in
   # the logs, so alert on them. REDIS_DB is read from the env.
+  # REDIS_PASSWORD and REDIS_SSL are set only where Redis needs them
+  # (production); unset, they are ignored, as in staging and development.
   coordination_redis:
     host: os.environ/REDIS_HOST
     port: os.environ/REDIS_PORT
+    password: os.environ/REDIS_PASSWORD
+    ssl: os.environ/REDIS_SSL
 
 router_settings:
   redis_host: os.environ/REDIS_HOST

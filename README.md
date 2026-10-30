@@ -3,16 +3,19 @@
 Artsy's [LiteLLM](https://github.com/BerriAI/litellm) gateway. Apps call LLM providers through it, each with its own key, limits, budget and spend tracking.
 
 - **Staging**: https://litellm.stg.artsy.systems (admin UI, VPN)
-- **Production**: not deployed yet
+- **Production**: https://litellm.prd.artsy.systems (admin UI, VPN)
 - **In-cluster**: `http://artsy-litellm-web-internal.default.svc.cluster.local:4000`
-- **Deploys**: `main` → staging
+- **Deploys**: `main` → staging. `release` → production, after approval in Horizon.
 
 ## Configuration
 
 - Gateway settings and the default model: `config.yaml`
 - Models, keys, teams, budgets: admin UI. No deploy needed.
+- Secrets (`DATABASE_URL`, `LITELLM_MASTER_KEY`, `LITELLM_SALT_KEY`, `ANTHROPIC_API_KEY`, and in production `REDIS_PASSWORD`): Vault, one secret per variable under `kubernetes/apps/artsy-litellm/`, loaded by fortress. Changing one needs a pod restart.
+- `REDIS_HOST`, `REDIS_PORT`, `REDIS_DB`: config map `artsy-litellm-environment`. Production also sets `REDIS_SSL=true`. Staging leaves `REDIS_SSL` and `REDIS_PASSWORD` unset (no TLS, no password). Never set `REDIS_URL`; it overrides `REDIS_DB`.
+- Redis: staging uses shared-staging, on our own DB number (see Notion "Shared Redis DB Assignments"). Production has its own ElastiCache for Valkey group `artsy-litellm-production` (DB 0, TLS, auth token).
 
-Response caching stays off: on the shared Redis its flush would wipe every app's data.
+Response caching stays off: on staging's shared Redis its flush would wipe every app's data.
 
 ## Connecting an app
 
@@ -31,15 +34,15 @@ Every call is traced to [Phoenix](https://github.com/artsy/artsy-phoenix). Set t
 { "phoenix_project_name": "<project>" }
 ```
 
-- Without it, traces go to `PHOENIX_PROJECT_NAME` (`litellm` on staging).
+- Without it, traces go to `PHOENIX_PROJECT_NAME` (`litellm` on staging and production).
 - Keys can't opt out (that's Enterprise only). Apps with their own tracing, like Metaphysics, get their LLM calls traced twice, so use a separate project for their key.
 - Don't add the UI's "Arize" integration. It sends to Arize's cloud, not our Phoenix.
 
 ## First deploy
 
-The first deploy needs:
+The first deploy to each environment needs:
 
-- the ECR repo and the Vault policy and secrets (artsy/infrastructure)
+- the ECR repo and the Vault policy (artsy/infrastructure), and the Vault secrets
 - the `artsy-litellm` ServiceAccount (artsy/substance)
 - a `litellm` database
 - the config map, created with `kubectl` because Hokusai can't create it:
@@ -49,7 +52,9 @@ kubectl --context staging create configmap artsy-litellm-environment --from-lite
 kubectl --context staging label configmap artsy-litellm-environment app=artsy-litellm
 ```
 
-After the first deploy, create two indexes that LiteLLM's migrations leave out. Until they exist, pods log `prisma schema out of sync`:
+Production uses `--context production` and also sets `REDIS_SSL=true`, with `REDIS_DB=0` and the host of the `artsy-litellm-production` group. `REDIS_PASSWORD` goes in Vault.
+
+After the first deploy, in each environment, create two indexes that LiteLLM's migrations leave out. Run them as the `litellm` user. Until they exist, pods log `prisma schema out of sync`:
 
 ```sql
 CREATE INDEX CONCURRENTLY IF NOT EXISTS "LiteLLM_SpendLogs_litellm_call_id_idx" ON "LiteLLM_SpendLogs"("litellm_call_id");
