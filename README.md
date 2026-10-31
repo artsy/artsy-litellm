@@ -64,6 +64,14 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS "LiteLLM_SpendLogs_litellm_call_id_idx" 
 CREATE INDEX CONCURRENTLY IF NOT EXISTS "LiteLLM_SpendLogs_api_key_startTime_idx" ON "LiteLLM_SpendLogs"("api_key", "startTime");
 ```
 
+## First admin
+
+`config.yaml` disables the admin UI login with the master key (`disable_env_credential_login: true`), so the first admin has to be created through the API with the master key (`Authorization: Bearer <master key>`):
+
+1. In a fresh database, create the proxy admin row first: `POST /user/new` with `{"user_id":"default_user_id","user_role":"proxy_admin","auto_create_key":false}`. Without it, `/invitation/new` fails with a foreign key error that blames `user_id`.
+2. Create your user: `POST /user/new` with `{"user_email":"<email>","user_role":"proxy_admin","auto_create_key":false}`.
+3. Create an invitation: `POST /invitation/new` with `{"user_id":"<id from step 2>"}`, then open `/ui?invitation_id=<id>` to set your password (12 or more characters, with upper and lower case letters, a number and a special character).
+
 ## Development
 
 ```
