@@ -57,7 +57,7 @@ Production uses `--context production` and also sets `REDIS_SSL=true`, with `RED
 
 Both environments also set `PHOENIX_COLLECTOR_HTTP_ENDPOINT` (`http://artsy-phoenix-web-internal.default.svc.cluster.local:6006/v1/traces`) and `PHOENIX_PROJECT_NAME` (`litellm`) in the config map, for example with `kubectl patch configmap artsy-litellm-environment --type merge -p '{"data":{...}}'`. The Phoenix API key goes in Vault as `PHOENIX_API_KEY` (see Tracing).
 
-After the first deploy, in each environment, create two indexes that LiteLLM's migrations leave out. Run them as the `litellm` user. Until they exist, pods log `prisma schema out of sync`:
+LiteLLM 1.106 and later builds the two request-log indexes itself after the migrations, so there is nothing to run. On older versions (1.104.x and earlier), create them by hand as the `litellm` user after the first deploy, or pods log `prisma schema out of sync`:
 
 ```sql
 CREATE INDEX CONCURRENTLY IF NOT EXISTS "LiteLLM_SpendLogs_litellm_call_id_idx" ON "LiteLLM_SpendLogs"("litellm_call_id");
