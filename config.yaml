@@ -27,6 +27,23 @@ general_settings:
     port: os.environ/REDIS_PORT
     password: os.environ/REDIS_PASSWORD
     ssl: os.environ/REDIS_SSL
+  # Phoenix for apps that reach it only through LiteLLM. A key needs the route
+  # in metadata.allowed_passthrough_routes. Callers send `"no-log": true` so
+  # these calls aren't traced themselves; keep global_disable_no_log_param off.
+  pass_through_endpoints:
+    - path: "/phoenix/v1/trace_annotations"
+      target: "http://artsy-phoenix-web-internal.default.svc.cluster.local:6006/v1/trace_annotations"
+      headers:
+        Authorization: "Bearer os.environ/PHOENIX_API_KEY"
+      auth: true
+      methods: ["POST"]
+    # JSON spans; OTLP can't pass through (it's protobuf).
+    - path: "/phoenix/v1/projects/metaphysics/spans"
+      target: "http://artsy-phoenix-web-internal.default.svc.cluster.local:6006/v1/projects/metaphysics/spans"
+      headers:
+        Authorization: "Bearer os.environ/PHOENIX_API_KEY"
+      auth: true
+      methods: ["POST"]
 
 router_settings:
   redis_host: os.environ/REDIS_HOST

@@ -35,7 +35,8 @@ Every call is traced to [Phoenix](https://github.com/artsy/artsy-phoenix). Set t
 ```
 
 - Without it, traces go to `PHOENIX_PROJECT_NAME` (`litellm` on staging and production).
-- Keys can't opt out (that's Enterprise only). Apps with their own tracing, like Metaphysics, get their LLM calls traced twice, so use a separate project for their key.
+- Keys can't opt out (that's Enterprise only). Apps that also trace the LLM calls themselves get them twice, so use a separate project for their key.
+- Apps that reach Phoenix only through LiteLLM (their own spans, user feedback): see [LiteLLM and Phoenix, end to end](docs/phoenix.md).
 - Don't add the UI's "Arize" integration. It sends to Arize's cloud, not our Phoenix.
 
 ## First deploy
