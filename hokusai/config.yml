@@ -1,3 +1,5 @@
 ---
 project-name: artsy-litellm
 pre-deploy: python litellm/proxy/prisma_migration.py
+template-config-files:
+  - s3://artsy-citadel/k8s/hokusai-vars.yml

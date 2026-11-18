@@ -180,3 +180,28 @@ spec:
             name: artsy-litellm-web-internal
             port:
               name: http
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: artsy-litellm-external
+  namespace: default
+  annotations:
+    nginx.ingress.kubernetes.io/whitelist-source-range: {{ externalIngressAllowSourceIP|join(',') }}
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+    nginx.ingress.kubernetes.io/proxy-body-size: "32m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+spec:
+  ingressClassName: external-nginx
+  rules:
+  - host: litellm-staging.artsy.net
+    http:
+      paths:
+      - path: /v1/messages
+        pathType: Prefix
+        backend:
+          service:
+            name: artsy-litellm-web-internal
+            port:
+              name: http
