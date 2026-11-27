@@ -205,3 +205,11 @@ spec:
             name: artsy-litellm-web-internal
             port:
               name: http
+      # Gemini's native API, for Antigravity CLI in duchamp's AI review.
+      - path: /v1beta/models
+        pathType: Prefix
+        backend:
+          service:
+            name: artsy-litellm-web-internal
+            port:
+              name: http
